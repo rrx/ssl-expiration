@@ -16,6 +16,9 @@ fn main() {
                                      domain,
                                      !days);
                     exit_code = 1;
+                } else if expiration.days() <= 7 {
+                    println!("{} SSL certificate will expire soon, in {} days", domain, days);
+                    exit_code = 1;
                 } else {
                     println!("{} SSL certificate will expire in {} days", domain, days);
                 }

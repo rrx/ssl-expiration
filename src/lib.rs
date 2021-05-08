@@ -19,25 +19,16 @@ extern crate openssl_sys;
 #[macro_use]
 extern crate error_chain;
 
-use std::os::raw::c_int;
 use std::net::{TcpStream, ToSocketAddrs};
 use std::error::Error;
 use openssl::ssl::{Ssl, SslContext, SslMethod, SslVerifyMode};
 use openssl::asn1::Asn1Time;
-use openssl_sys::ASN1_TIME;
-use foreign_types_shared::{ForeignType,ForeignTypeRef};
 use error::Result;
 
-
-extern "C" {
-    fn ASN1_TIME_diff(pday: *mut c_int,
-                      psec: *mut c_int,
-                      from: *const ASN1_TIME,
-                      to: *const ASN1_TIME);
+pub struct SslExpiration {
+    secs: i32,
+    alt_names: Vec<String>
 }
-
-
-pub struct SslExpiration(c_int);
 
 
 impl SslExpiration {
@@ -63,38 +54,41 @@ impl SslExpiration {
             .peer_certificate()
             .ok_or("Certificate not found")?;
 
-        let now = Asn1Time::days_from_now(0)?;
-
-        let (mut pday, mut psec) = (0, 0);
-        unsafe {
-            let ptr_pday: *mut c_int = &mut pday;
-            let ptr_psec: *mut c_int = &mut psec;
-            ASN1_TIME_diff(ptr_pday,
-                           ptr_psec,
-                           now.as_ptr(),
-                           cert.not_after().as_ptr());
+        let mut alt_names = vec![];
+        if let Some(names) = cert.subject_alt_names() {
+            alt_names = names.iter().filter_map(|n| n.dnsname()).map(|n| n.to_string()).collect();
+            for name in &alt_names {
+                println!("Alt: {}", name);//.dnsname().unwrap());
+            }
         }
-
-        Ok(SslExpiration(pday * 24 * 60 * 60 - psec))
+        let now = Asn1Time::days_from_now(0)?;
+        let after = cert.not_after();
+        let before = cert.not_before();
+        let from_now = now.diff(cert.not_after())?;
+        println!("not before: {:?}", before);
+        println!("not after: {:?}", after);
+        let verify = cert.verify(&cert.public_key().unwrap());
+        println!("Verify: {:?}", verify);
+        Ok(SslExpiration { secs: from_now.days * 24 * 60 * 60 + from_now.secs, alt_names })
     }
 
     /// How many seconds until SSL certificate expires.
     ///
     /// This function will return minus if SSL certificate is already expired.
     pub fn secs(&self) -> i32 {
-        self.0
+        self.secs
     }
 
     /// How many days until SSL certificate expires
     ///
     /// This function will return minus if SSL certificate is already expired.
     pub fn days(&self) -> i32 {
-        self.0 / 60 / 60 / 24
+        self.secs / 60 / 60 / 24
     }
 
     /// Returns true if SSL certificate is expired
     pub fn is_expired(&self) -> bool {
-        self.0 < 0
+        self.secs < 0
     }
 }
 
