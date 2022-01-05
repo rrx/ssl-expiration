@@ -20,14 +20,12 @@ extern crate openssl_sys;
 extern crate error_chain;
 
 use std::net::{TcpStream, ToSocketAddrs};
-use std::error::Error;
 use openssl::ssl::{Ssl, SslContext, SslMethod, SslVerifyMode};
 use openssl::asn1::Asn1Time;
 use error::Result;
 
 pub struct SslExpiration {
     secs: i32,
-    alt_names: Vec<String>
 }
 
 
@@ -49,16 +47,17 @@ impl SslExpiration {
         let connector = Ssl::new(&context)?;
         let stream = TcpStream::connect(addr)?;
         let stream = connector.connect(stream)
-            .map_err(|e| error::ErrorKind::HandshakeError(e.description().to_owned()))?;
+            .map_err(|e| error::ErrorKind::HandshakeError(e.to_string()))?;
         let cert = stream.ssl()
             .peer_certificate()
             .ok_or("Certificate not found")?;
 
-        let mut alt_names = vec![];
         if let Some(names) = cert.subject_alt_names() {
-            alt_names = names.iter().filter_map(|n| n.dnsname()).map(|n| n.to_string()).collect();
+            let alt_names: Vec<String> = names.iter()
+                .filter_map(|n| n.dnsname()).map(|n| n.to_string())
+                .collect();
             for name in &alt_names {
-                println!("Alt: {}", name);//.dnsname().unwrap());
+                println!("Alt: {}", name);
             }
         }
         let now = Asn1Time::days_from_now(0)?;
@@ -69,7 +68,7 @@ impl SslExpiration {
         println!("not after: {:?}", after);
         let verify = cert.verify(&cert.public_key().unwrap());
         println!("Verify: {:?}", verify);
-        Ok(SslExpiration { secs: from_now.days * 24 * 60 * 60 + from_now.secs, alt_names })
+        Ok(SslExpiration { secs: from_now.days * 24 * 60 * 60 + from_now.secs })
     }
 
     /// How many seconds until SSL certificate expires.

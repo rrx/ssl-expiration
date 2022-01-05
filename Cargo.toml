@@ -9,7 +9,7 @@ repository = "https://github.com/onur/ssl-expiration"
 documentation = "https://docs.rs/ssl-expiration"
 
 [dependencies]
-error-chain = "0.10"
+error-chain = "0.12"
 openssl = "0.10"
 openssl-sys = "0.9"
 foreign-types-shared = "0.1"
