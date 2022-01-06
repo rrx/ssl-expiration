@@ -9,6 +9,9 @@ fn main() {
     for domain in env::args().skip(1) {
         match ssl_expiration::SslExpiration::from_domain_name(&domain) {
             Ok(expiration) => {
+                for name in expiration.get_alt_names() {
+                    println!("Alt: {}", name);
+                }
                 let days = expiration.days();
                 if expiration.is_expired() {
                     let _ = writeln!(stderr(),

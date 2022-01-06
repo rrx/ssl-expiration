@@ -26,6 +26,7 @@ use error::Result;
 
 pub struct SslExpiration {
     secs: i32,
+    alt_names: Vec<String>
 }
 
 
@@ -52,23 +53,20 @@ impl SslExpiration {
             .peer_certificate()
             .ok_or("Certificate not found")?;
 
+        let mut alt_names = vec![];
         if let Some(names) = cert.subject_alt_names() {
-            let alt_names: Vec<String> = names.iter()
+            alt_names = names.iter()
                 .filter_map(|n| n.dnsname()).map(|n| n.to_string())
                 .collect();
-            for name in &alt_names {
-                println!("Alt: {}", name);
-            }
         }
+
         let now = Asn1Time::days_from_now(0)?;
-        let after = cert.not_after();
-        let before = cert.not_before();
         let from_now = now.diff(cert.not_after())?;
-        println!("not before: {:?}", before);
-        println!("not after: {:?}", after);
-        let verify = cert.verify(&cert.public_key().unwrap());
-        println!("Verify: {:?}", verify);
-        Ok(SslExpiration { secs: from_now.days * 24 * 60 * 60 + from_now.secs })
+
+        cert.verify(&cert.public_key().expect("Public Key Missing"))
+            .expect("Cert verified");
+
+        Ok(SslExpiration { secs: from_now.days * 24 * 60 * 60 + from_now.secs, alt_names })
     }
 
     /// How many seconds until SSL certificate expires.
@@ -88,6 +86,10 @@ impl SslExpiration {
     /// Returns true if SSL certificate is expired
     pub fn is_expired(&self) -> bool {
         self.secs < 0
+    }
+
+    pub fn get_alt_names(&self) -> &Vec<String> {
+        &self.alt_names
     }
 }
 
