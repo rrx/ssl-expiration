@@ -119,6 +119,9 @@ mod tests {
     #[test]
     fn test_ssl_expiration() {
         assert!(!SslExpiration::from_domain_name("google.com").unwrap().is_expired());
-        assert!(SslExpiration::from_domain_name("expired.identrustssl.com").unwrap().is_expired());
+        // See: https://www.ssl.com/sample-valid-revoked-and-expired-ssl-tls-certificates/
+        assert!(SslExpiration::from_domain_name("expired-rsa-dv.ssl.com").unwrap().is_expired());
+        // TODO: Add test for revoked certificates
+        assert!(SslExpiration::from_domain_name("revoked-rsa-dv.ssl.com").unwrap().is_expired());
     }
 }
