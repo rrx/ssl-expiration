@@ -13,9 +13,7 @@
 //! }
 //! ```
 
-extern crate foreign_types_shared;
 extern crate openssl;
-extern crate openssl_sys;
 #[macro_use]
 extern crate error_chain;
 
